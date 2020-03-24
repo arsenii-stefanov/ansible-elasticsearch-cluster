@@ -1,0 +1,119 @@
+######################################
+###                                ###
+###       MANAGED BY ANSIBLE       ###
+###     (DO NOT EDIT MANUALLY)     ###
+###                                ###
+######################################
+
+# Elasticsearch Reference >> Modules >> Node: https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-node.html
+cluster.name: "{{ elasticsearch_cluster_name }}"
+cluster.remote.connect: false
+
+node:
+  name: "{{ inventory_hostname }}"
+### START NODE LABELS
+{% if es_node_role is defined and es_node_role == 'master-only' %}
+  master: true
+  data: false
+  ingest: false
+  ml: false
+{% elif es_node_role is defined and es_node_role == 'data-only' %}
+  master: false
+  data: true
+  ingest: false
+  ml: false
+{% elif es_node_role is defined and es_node_role == 'ingest-only' %}
+  master: false
+  data: false
+  ingest: true
+  ml: false
+{% elif es_node_role is defined and es_node_role == 'ml-only' %}
+  master: false
+  data: false
+  ingest: false
+  ml: true
+{% elif es_node_role is defined and (es_node_role == 'coord-only') %}
+  master: false
+  data: false
+  ingest: false
+  ml: false
+{% elif (es_node_role is defined and es_node_role == "master-data") or (es_node_role is defined and es_node_role == "") or es_node_role is not defined %}
+  master: true
+  data: true
+  ingest: true
+  ml: false
+{% endif %}
+### END NODE LABELS
+
+### You can use environment variables
+#path.data: "${DATA_PATH}"
+#path.repo: ["${BACKUP_REPO_PATH}"]
+path:
+  data: "{{ elasticsearch_data_container_dir }}"
+  repo: ["{{ elasticsearch_config['config_opts']['backup_repo'] | default ('') }}"]
+
+### START NETWORK CONFIG
+network:
+  host: 0.0.0.0
+  publish_host: {{ hostvars[inventory_hostname].ansible_host }}
+http:
+  port: {{ elasticsearch_http_port }}
+### END NETWORK CONFIG
+
+### START XPACK CONFIG
+xpack:
+{{ elasticsearch_config['xpack'] | to_nice_yaml(width=800) | indent(width=4, indentfirst=True) }}
+### END XPACK CONFIG
+
+### START DISCOVERY CONFIG
+{% if elasticsearch_config['global']['major_version']|float() >= 7 and elasticsearch_discovery_type == 'static_node' %}
+
+# master-eligible nodes only
+discovery.seed_hosts:
+{% for host in hostvars %}
+{% if host != inventory_hostname %}
+{% if (hostvars[host].es_node_role is defined and (hostvars[host].es_node_role == 'master-only' or hostvars[host].es_node_role =='master-data' or hostvars[host].es_node_role == "" )) or hostvars[host].es_node_role is not defined %}
+  - {{ hostvars[host].ansible_host }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% elif elasticsearch_config['global']['major_version']|float() >= 7 and elasticsearch_discovery_type == 'load_balancer' %}
+# master-eligible nodes only
+discovery.seed_hosts:
+  - {{ elasticsearch_load_balancer_address }}
+
+{% endif %}
+
+{% if elasticsearch_config['global']['major_version']|float() >= 7 %}
+# master-eligible nodes only
+cluster.initial_master_nodes:
+{% for host in hostvars %}
+{% if (hostvars[host].es_node_role is defined and (hostvars[host].es_node_role == 'master-only' or hostvars[host].es_node_role =='master-data' or hostvars[host].es_node_role == "" )) or hostvars[host].es_node_role is not defined %}
+  - {{ host }}
+{% endif %}
+{% endfor %}
+
+{%endif%}
+
+{% if elasticsearch_config['global']['major_version']|float() < 7 and elasticsearch_discovery_type == 'static_node' %}
+
+discovery.zen.minimum_master_nodes: {{ elasticsearch_config['config_opts']['minimum_master_nodes'] | default('3') }}
+# master-eligible nodes only
+discovery.zen.ping.unicast.hosts: 
+{% for host in hostvars %}
+{% if host != inventory_hostname %}
+{% if (es_node_role is defined and (es_node_role == 'master-only' or es_node_role =='master-data' or es_node_role == "" )) or es_node_role is not defined %}
+  - {{ hostvars[host].ansible_host }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% elif elasticsearch_config['global']['major_version']|float() < 7 and elasticsearch_discovery_type == 'load_balancer' %}
+
+discovery.zen.minimum_master_nodes: {{ elasticsearch_config['config_opts']['minimum_master_nodes'] | default('3') }}
+# master-eligible nodes only
+discovery.zen.ping.unicast.hosts: {{ elasticsearch_load_balancer_address }}
+
+{%endif%}
+### END DISCOVERY CONFIG

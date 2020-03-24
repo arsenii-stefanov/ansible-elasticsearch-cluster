@@ -1,0 +1,24 @@
+---
+
+- name: FILEBEAT LOGGER CONFIG TASK | Ensure That Host Directories Exist
+  file:
+    path: "{{ item.host_dir }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ filebeat_directories }}"
+  notify: "restart_filebeat_docker"
+  tags: [ run_filebeat_logger_tasks ]
+
+- name: FILEBEAT LOGGER CONFIG TASK | Ensure That Config Files Exist
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  no_log: true
+  with_items: "{{ filebeat_files }}"
+  notify: "restart_filebeat_docker"
+  tags: [ run_filebeat_logger_tasks ]

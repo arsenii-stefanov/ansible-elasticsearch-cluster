@@ -1,0 +1,25 @@
+---
+
+- name: ELASTICSEARCH CONFIG TASK | Ensure That Host Directories Exist
+  file:
+    path: "{{ item.host_dir }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ elasticsearch_directories }}"
+  notify:
+  - "dummy_restart_elasticsearch_docker"
+  - "restart_elasticsearch_docker"
+
+- name: ELASTICSEARCH CONFIG TASK | Ensure That Config Files Exist
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ elasticsearch_files }}"
+  notify:
+  - "dummy_restart_elasticsearch_docker"
+  - "restart_elasticsearch_docker"

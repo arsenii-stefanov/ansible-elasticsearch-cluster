@@ -1,0 +1,23 @@
+---
+
+- name: ELASTICSEARCH HEALTHCHECK TASK | Ensure That Elasticsearch is Running
+  uri:
+    url: "{{ elasticsearch_url }}/_cluster/health?local=true"
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+  register: es_result
+  until: es_result.status == 200
+  retries: "{{ elasticsearch_config['global']['status_check_retries'] }}"
+  delay: "{{ elasticsearch_config['global']['status_check_delay'] }}"
+
+- name: ELASTICSEARCH HEALTHCHECK TASK | Ensure That Elasticsearch is Running
+  uri:
+    url: "{{ elasticsearch_url }}/_cat/nodes?v"
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+  register: es_result
+  until: es_result.status == 200
+  retries: "{{ elasticsearch_config['global']['status_check_retries'] }}"
+  delay: "{{ elasticsearch_config['global']['status_check_delay'] }}"

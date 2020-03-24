@@ -1,0 +1,52 @@
+{% if filebeat_config['config_opts']['output_type'] == "elasticsearch" %}
+setup.kibana.host: "{{ kibana_url }}"
+setup.dashboards.enabled: false
+{% endif %}
+
+filebeat.registry.path: {{ filebeat_config_container_dir }}/filebeat_registry
+
+{% if filebeat_config['config_opts']['output_type'] == "elasticsearch" %}
+
+filebeat.modules:
+- module: elasticsearch
+  server:
+    enabled: true
+    var.paths:
+{% if elasticsearch_installation_type == "docker" %}
+      - '/var/lib/docker/containers/*/*-json.log'
+{% endif %}
+
+output.elasticsearch:
+  hosts:
+{% for item in filebeat_config['config_opts']['output_hosts'] %}
+  - {{ item }}
+{% endfor %}
+{% if (filebeat_config['config_opts']['output_user'] is defined and filebeat_config['config_opts']['output_user'] != "") and (filebeat_config['config_opts']['output_password'] is defined and filebeat_config['config_opts']['output_password'] != "") %}
+  username: "{{ filebeat_config['config_opts']['output_user'] }}"
+  password: "{{ filebeat_config['config_opts']['output_password'] }}"
+{% endif %}
+
+{% elif filebeat_config['config_opts']['output_type'] == "logstash" and elasticsearch_installation_type == "docker" %}
+
+filebeat.inputs:
+- type: container
+  paths: 
+    - '/var/lib/docker/containers/*/*-json.log'
+  scan_frequency: 10s
+  harvester_buffer_size: 524288
+  max_bytes: 10485760
+  symlinks: true
+
+output.logstash:
+  hosts:
+{% for item in filebeat_config['config_opts']['output_hosts'] %}
+  - {{ item }}
+{% endfor %}
+
+{% endif %}
+
+logging.level: ${LOG_LEVEL:error}
+
+http.enabled: true
+http.host: 0.0.0.0
+http.port: {{ filebeat_http_port | default('5066') }}

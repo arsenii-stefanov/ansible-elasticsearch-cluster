@@ -1,0 +1,29 @@
+{
+  "cluster" : [ "all" ],
+  "indices": [
+    {
+      "allow_restricted_indices": true,
+      "names": [
+        "*"
+      ],
+      "privileges": [
+        "all"
+      ]
+    }
+  ],
+  "applications": [
+    {
+      "application": "kibana-.kibana",
+      "privileges": [
+        "all"
+      ],
+      "resources": [
+        "*"
+      ]
+    }
+  ],
+  "run_as": [],
+  "transient_metadata": {
+    "enabled": true
+  }
+}

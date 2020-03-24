@@ -1,0 +1,41 @@
+{
+  "cluster": [
+    "monitor",
+    "manage_pipeline",
+    "manage_ingest_pipelines",
+    "transport_client",
+    "monitor_ml",
+    "monitor_data_frame_transforms",
+    "monitor_watcher",
+    "read_ccr",
+    "read_ilm",
+    "monitor_rollup",
+    "create_snapshot"
+  ],
+  "indices": [
+    {
+      "allow_restricted_indices": false,
+      "names": [
+        "*"
+      ],
+      "privileges": [
+        "all"
+      ]
+    }
+  ],
+  "applications": [
+    {
+      "application": "kibana-.kibana",
+      "privileges": [
+        "all"
+      ],
+      "resources": [
+        "*"
+      ]
+    }
+  ],
+  "run_as": [],
+  "transient_metadata": {
+   "enabled": true
+  }
+}

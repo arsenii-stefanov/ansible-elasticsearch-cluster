@@ -1,0 +1,218 @@
+---
+
+elasticsearch_installation_type: "docker"        # Available options: docker
+
+elasticsearch_main_mount_dir: "/srv"
+
+elasticsearch_disk_mounts: [
+    {
+      src: "/dev/sdb",
+      dest: "{{ elasticsearch_main_mount_dir }}",
+      fstype: "ext4",
+      fs_opts: "-m 0 -F -E lazy_itable_init=0,lazy_journal_init=0,discard",
+      mount_opts: "discard,defaults,nofail",
+      state: mounted
+    }
+]
+
+elasticsearch_cluster_name: "my-elasticsearch-cluster"
+
+elasticsearch_owner: "1000"
+elasticsearch_group: "1000"
+elasticsearch_http_port: "9200"
+elasticsearch_transport_tcp_port: "9300"
+
+filebeat_owner: "root"
+filebeat_group: "root"
+filebeat_http_port: "5066"
+
+# ELASTICSEARCH FILES AND DIRECTORIES
+elasticsearch_main_host_dir: "{{ elasticsearch_main_mount_dir }}/elasticsearch"
+elasticsearch_config_host_dir: "{{ elasticsearch_main_host_dir }}/config"
+elasticsearch_certs_host_dir: "{{ elasticsearch_config_host_dir }}/certificates"
+elasticsearch_data_host_dir: "{{ elasticsearch_main_host_dir }}/data"
+elasticsearch_main_container_dir: "/usr/share/elasticsearch"
+elasticsearch_config_container_dir: "{{ elasticsearch_main_container_dir }}/config"
+elasticsearch_certs_container_dir: "{{ elasticsearch_config_container_dir }}/certificates"
+elasticsearch_data_container_dir: "{{ elasticsearch_main_container_dir }}/data"
+
+elasticsearch_main_config: "elasticsearch.yml"
+elasticsearch_log_config: "log4j2.properties"
+
+elasticsearch_directories: [
+    {
+      host_dir: "{{ elasticsearch_main_host_dir }}",
+      container_dir: "{{ elasticsearch_main_container_dir }}",
+      owner: "{{ elasticsearch_owner }}",
+      group: "{{ elasticsearch_group }}",
+      mode: "0755"
+    },
+    {
+      host_dir: "{{ elasticsearch_config_host_dir }}",
+      container_dir: "{{ elasticsearch_config_container_dir }}",
+      owner: "{{ elasticsearch_owner }}",
+      group: "{{ elasticsearch_group }}",
+      mode: "0755"
+    },
+    {
+      host_dir: "{{ elasticsearch_data_host_dir }}",
+      container_dir: "{{ elasticsearch_data_container_dir }}",
+      owner: "{{ elasticsearch_owner }}",
+      group: "{{ elasticsearch_group }}",
+      mode: "0755"
+    },
+    {
+      host_dir: "{{ elasticsearch_certs_host_dir }}",
+      container_dir: "{{ elasticsearch_certs_container_dir }}",
+      owner: "{{ elasticsearch_owner }}",
+      group: "{{ elasticsearch_group }}",
+      mode: "0755"
+    }
+]
+
+elasticsearch_files: [
+    {
+      src: "elasticsearch/{{ elasticsearch_main_config }}.j2",
+      dest: "{{ elasticsearch_config_host_dir }}/{{ elasticsearch_main_config }}",
+      owner: "{{ elasticsearch_owner }}",
+      group: "{{ elasticsearch_group }}",
+      mode: "0600"
+    },
+    {
+      src: "elasticsearch/{{ elasticsearch_log_config }}.j2",
+      dest: "{{ elasticsearch_config_host_dir }}/{{ elasticsearch_log_config }}",
+      owner: "{{ elasticsearch_owner }}",
+      group: "{{ elasticsearch_group }}",
+      mode: "0600"
+    }
+]
+
+# FILEBEAT FILES AND DIRECTORIES
+
+filebeat_main_host_dir: "{{ elasticsearch_main_mount_dir }}/filebeat"
+filebeat_config_host_dir: "{{ filebeat_main_host_dir }}/config"
+filebeat_config_container_dir: "/etc/filebeat"
+filebeat_main_config: "filebeat.yml"
+
+filebeat_directories: [
+    {
+      host_dir: "{{ filebeat_config_host_dir }}",
+      container_dir: "{{ filebeat_config_container_dir }}",
+      owner: "{{ filebeat_owner }}",
+      group: "{{ filebeat_group }}",
+      mode: "0755"
+    }
+]
+
+filebeat_files: [
+    {
+      src: "filebeat/{{ filebeat_main_config }}.j2",
+      dest: "{{ filebeat_config_host_dir }}/{{ filebeat_main_config }}",
+      owner: "{{ filebeat_owner }}",
+      group: "{{ filebeat_group }}",
+      mode: "0600"
+    }
+]
+
+# SSL CERTIFICATES
+elasticsearch_root_ca_cert_name: "ca.crt"
+elasticsearch_root_ca_key_name: "ca.key"
+elasticsearch_node_csr_name: "{{ inventory_hostname }}.csr"
+elasticsearch_node_cert_name: "{{ inventory_hostname }}.crt"
+elasticsearch_node_key_name: "{{ inventory_hostname }}.key"
+
+# Shell command for generating a Root CA and key: openssl req -x509 -newkey rsa:4096 -keyout key.pem -out root-ca.pem -days 3650 -nodes -subj "/C=US/ST=NY/L=NewYork/O=MyOrganization/OU=IT/CN=elasticsearch.local/emailAddress=admin@elasticsearch.local"
+
+elasticsearch_openssl_csr:
+  common_name: "elasticsearch.local"
+  country_name: "US"
+  state_or_province_name: "NY"
+  locality_name: "NY"
+  organizational_unit_name: "IT"
+  organization_name: "MyOrganization"
+  email_address: "admin@elasticsearch.local"
+  subject_alt_name:
+    - "DNS:{{ inventory_hostname }}"
+    - "IP:{{ ansible_host }}"
+
+
+# ELASTICSEARCH MAIN CONFIG
+elasticsearch_version: "7.3.2"
+
+elasticsearch_url: "http://127.0.0.1:{{ elasticsearch_http_port }}"
+
+elasticsearch_config:
+  global:
+    major_version: "{{ elasticsearch_version.split('.')[0] }}"
+    status_check_retries: "20"  # a number of retries when checking the cluster status
+    status_check_delay: "15"    # a delay in seconds when checking the cluster status
+  docker_opts:
+    container_name: "elasticsearch"
+    image_name: "docker.elastic.co/elasticsearch/elasticsearch"
+    image_tag: "{{ elasticsearch_version }}"
+    volumes:
+      - "{{ elasticsearch_config_host_dir }}/{{ elasticsearch_main_config }}:{{ elasticsearch_config_container_dir }}/{{ elasticsearch_main_config }}"
+      - "{{ elasticsearch_config_host_dir }}/{{ elasticsearch_log_config }}:{{ elasticsearch_config_container_dir }}/{{ elasticsearch_log_config }}"
+      - "{{ elasticsearch_data_host_dir }}:{{ elasticsearch_data_container_dir }}"
+      - "{{ elasticsearch_certs_host_dir }}:{{ elasticsearch_certs_container_dir }}"
+    ports:
+      - "{{ elasticsearch_http_port }}:{{ elasticsearch_http_port }}"
+      - "{{ elasticsearch_transport_tcp_port }}:{{ elasticsearch_transport_tcp_port }}"
+    env_vars: "{{ elasticsearch_env_vars }}"
+    log_driver: "json-file"
+    network_mode: "bridge"
+    networks:
+      - { name: "elasticsearch" }
+    purge_networks: "false"
+  config_opts: "{{ elasticsearch_config_opts | default('') }}"
+  # The entire 'xpack' part will be copied to the 'templates/elasticsearch/elasticsearch.yml.j2' as is 
+  xpack: "{{ elasticsearch_xpack_config | default('') }}"
+
+elasticsearch_discovery_type: "static_node" # available options: static_node, load_balancer (session affinity should be disabled for nodes to discover all other nodes)
+
+elasticsearch_security_api: "{{ '_security' if elasticsearch_config['global']['major_version'] is version('7', '>=') else '_xpack/security' }}"
+
+elasticsearch_sysctl_config: [
+  { name: "vm.max_map_count", value: "262144", state: "present" }
+]
+
+elasticsearch_limits_config: [
+  { domain: "*", limit_type: "soft", limit_item: "nofile", value: "10000000" },
+  { domain: "root", limit_type: "hard", limit_item: "nofile", value: "10000000" }
+]
+
+# FILEBEAT LOGGER
+
+filebeat_version: "{{ elasticsearch_version }}"
+
+filebeat_config_opts:
+ output_type: "logstash"
+ output_hosts: ["graylog.example.local:12201"]
+
+# Filebeat requires the Kibana port to be specified, otherwise the default value, 5601, will be set
+kibana_url: "http://kibana.example.local:80"
+
+filebeat_config:
+  global:
+    status_check_retries: "20"  # a number of retries when checking Filebeat status
+    status_check_delay: "5"    # a delay in seconds when checking Filebeat status
+  docker_opts:
+    container_name: "filebeat"
+    image_name: "docker.elastic.co/beats/filebeat"
+    image_tag: "{{ filebeat_version }}"
+    setup_command: "setup --index-management -c {{ filebeat_config_container_dir }}/{{ filebeat_main_config }}"
+    command: "-e -c {{ filebeat_config_container_dir }}/{{ filebeat_main_config }}"
+    user: "{{ filebeat_owner | default(omit) }}"
+    volumes:
+      - "{{ filebeat_config_host_dir }}:{{ filebeat_config_container_dir }}"
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+    ports:
+      - "127.0.0.1:{{ filebeat_http_port }}:{{ filebeat_http_port }}"
+    env_vars: "{{ filebeat_env_vars | default(omit) }}"
+    log_driver: "json-file"
+    network_mode: "bridge"
+    # The Docker network does not really matter
+    networks:
+      - { name: "elasticsearch" }
+    purge_networks: "false"
+  config_opts: "{{ filebeat_config_opts | default('') }}"

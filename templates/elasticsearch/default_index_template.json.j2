@@ -1,0 +1,8 @@
+{
+  "index_patterns": ["*"],
+  "order": -1,
+  "settings": {
+    "number_of_shards": "{{ elasticsearch_config['config_opts']['number_of_shards'] | default('5') }}",
+    "number_of_replicas": "{{ elasticsearch_config['config_opts']['number_of_replicas'] | default('1') }}"
+  }
+}

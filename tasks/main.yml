@@ -1,0 +1,39 @@
+---
+
+- name: Include System Configuration Task
+  include_tasks: system-config.yml
+  tags: [always]
+
+- name: Include Elasticsearch Configuration Task
+  include_tasks: elasticsearch-config-docker.yml
+  when: elasticsearch_installation_type is defined and elasticsearch_installation_type == 'docker'
+  tags: [always]
+
+- name: Include Elasticsearch Certificates Task
+  include_tasks: elasticsearch-certs.yml
+  when: elasticsearch_config['xpack']['security']['enabled'] is defined and elasticsearch_config['xpack']['security']['enabled'] == true
+  tags: [always]
+
+- name: Include Elasticsearch Docker Task
+  include_tasks: elasticsearch-docker.yml
+  when: elasticsearch_installation_type is defined and elasticsearch_installation_type == 'docker'
+  tags: [always]
+
+- name: Include Elasticsearch Healthcheck Task
+  include_tasks: elasticsearch-healthcheck.yml
+  tags: [always]
+
+- name: Include Elasticsearch Post-Installation Task
+  include_tasks: elasticsearch-post-task.yml
+  when: ((elasticsearch_initial_setup is defined and elasticsearch_initial_setup == false) or elasticsearch_initial_setup is not defined) and inventory_hostname == ansible_play_hosts_all[0]
+  tags: [ run_post_installation_tasks ]
+
+- name: Include Filebeat Logger Configuration Task
+  include_tasks: filebeat-logger-config-docker.yml
+  when: ((elasticsearch_initial_setup is defined and elasticsearch_initial_setup == false) or elasticsearch_initial_setup is not defined) and (install_filebeat_logger is defined and install_filebeat_logger == true) and (elasticsearch_installation_type is defined and elasticsearch_installation_type == 'docker')
+  tags: [ run_filebeat_logger_tasks ]
+
+- name: Include Filebeat Logger Docker Task
+  include_tasks: filebeat-logger-docker.yml
+  when: ((elasticsearch_initial_setup is defined and elasticsearch_initial_setup == false) or elasticsearch_initial_setup is not defined) and (install_filebeat_logger is defined and install_filebeat_logger == true) and (elasticsearch_installation_type is defined and elasticsearch_installation_type == 'docker')
+  tags: [ run_filebeat_logger_tasks ]

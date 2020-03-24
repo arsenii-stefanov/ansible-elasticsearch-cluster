@@ -1,0 +1,46 @@
+---
+
+- name: elasticsearch_status_nodes
+  uri:
+    url: "{{ elasticsearch_url }}/_cat/nodes?pretty"
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+  register: es_result
+  until: es_result.status == 200
+  retries: "{{ elasticsearch_config['global']['status_check_retries'] }}"
+  delay: "{{ elasticsearch_config['global']['status_check_delay'] }}"
+
+- name: elasticsearch_status_cluster
+  uri:
+    url: "{{ elasticsearch_url }}/_cluster/health?local=true"
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+  register: es_result
+  until: es_result.status == 200
+  retries: "{{ elasticsearch_config['global']['status_check_retries'] }}"
+  delay: "{{ elasticsearch_config['global']['status_check_delay'] }}"
+
+- name: dummy_restart_elasticsearch_docker
+  debug:
+    msg: "NO RESTART NEEDED AS THIS IS INITIAL CLUSTER SETUP"
+  when: elasticsearch_initial_setup is defined and elasticsearch_initial_setup == true
+
+- name: restart_elasticsearch_docker
+  shell: "docker restart {{ elasticsearch_config['docker_opts']['container_name'] }}"
+  notify: elasticsearch_status_nodes
+  when: (elasticsearch_initial_setup is defined and elasticsearch_initial_setup == false) or elasticsearch_initial_setup is not defined
+
+- name: filebeat_status
+  uri:
+    url: "http://127.0.0.1:{{ filebeat_http_port }}/stats?pretty"
+    status_code: 200
+  register: filebeat_result
+  until: filebeat_result.status == 200
+  retries: "{{ filebeat_config['global']['status_check_retries'] }}"
+  delay: "{{ filebeat_config['global']['status_check_delay'] }}"
+
+- name: restart_filebeat_docker
+  shell: "docker restart {{ filebeat_config['docker_opts']['container_name'] }}"
+  notify: filebeat_status

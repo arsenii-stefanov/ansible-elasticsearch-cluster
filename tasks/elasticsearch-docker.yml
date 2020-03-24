@@ -1,0 +1,24 @@
+---
+
+- name: ELASTICSEARCH DOCKER TASK | Ensure That Docker Networks Exist
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ elasticsearch_config['docker_opts']['networks'] }}"
+
+- name: ELASTICSEARCH DOCKER TASK | Start Docker Container
+  docker_container:
+    name: "{{ elasticsearch_config['docker_opts']['container_name'] }}"
+    image: "{{ elasticsearch_config['docker_opts']['image_name'] }}:{{ elasticsearch_config['docker_opts']['image_tag'] }}"
+    state: started
+    restart_policy: always
+    detach: yes
+    interactive: yes
+    tty: yes
+    ports: "{{ elasticsearch_config['docker_opts']['ports'] | default(omit) }}"
+    env: "{{ elasticsearch_config['docker_opts']['env_vars'] | default(omit) }}"
+    volumes: "{{ elasticsearch_config['docker_opts']['volumes'] | default(omit) }}"
+    log_driver: "{{ elasticsearch_config['docker_opts']['log_driver']| default(omit) }}"
+    network_mode: "{{ elasticsearch_config['docker_opts']['network_mode']| default(omit) }}"
+    networks: "{{ elasticsearch_config['docker_opts']['networks'] | default(omit) }}"
+    purge_networks: "{{ elasticsearch_config['docker_opts']['purge_networks'] | default(omit) }}"
+  no_log: true

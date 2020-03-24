@@ -1,0 +1,42 @@
+---
+
+- name: FILEBEAT LOGGER DOCKER TASK | Start Docker Container [Setup]
+  docker_container:
+    name: "{{ filebeat_config['docker_opts']['container_name'] }}"
+    image: "{{ filebeat_config['docker_opts']['image_name'] }}:{{ filebeat_config['docker_opts']['image_tag'] }}"
+    state: started
+    restart_policy: always
+    detach: false
+    interactive: false
+    tty: false
+    command: "{{ filebeat_config['docker_opts']['setup_command'] | default(omit) }}"
+    user: "{{ filebeat_config['docker_opts']['user'] | default(omit) }}"
+    ports: "{{ filebeat_config['docker_opts']['ports'] | default(omit) }}"
+    env: "{{ filebeat_config['docker_opts']['env_vars'] | default(omit) }}"
+    volumes: "{{ filebeat_config['docker_opts']['volumes'] | default(omit) }}"
+    log_driver: "{{ filebeat_config['docker_opts']['log_driver']| default(omit) }}"
+    network_mode: "{{ filebeat_config['docker_opts']['network_mode']| default(omit) }}"
+    networks: "{{ filebeat_config['docker_opts']['networks'] | default(omit) }}"
+    purge_networks: "{{ filebeat_config['docker_opts']['purge_networks'] | default(omit) }}"
+  when: filebeat_config['config_opts']['output_type'] == "elasticsearch"
+  tags: [ run_filebeat_logger_tasks ]
+
+- name: FILEBEAT LOGGER DOCKER TASK | Start Docker Container
+  docker_container:
+    name: "{{ filebeat_config['docker_opts']['container_name'] }}"
+    image: "{{ filebeat_config['docker_opts']['image_name'] }}:{{ filebeat_config['docker_opts']['image_tag'] }}"
+    state: started
+    restart_policy: always
+    detach: yes
+    interactive: yes
+    tty: yes
+    command: "{{ filebeat_config['docker_opts']['command'] | default(omit) }}"
+    user: "{{ filebeat_config['docker_opts']['user'] | default(omit) }}"
+    ports: "{{ filebeat_config['docker_opts']['ports'] | default(omit) }}"
+    env: "{{ filebeat_config['docker_opts']['env_vars'] | default(omit) }}"
+    volumes: "{{ filebeat_config['docker_opts']['volumes'] | default(omit) }}"
+    log_driver: "{{ filebeat_config['docker_opts']['log_driver']| default(omit) }}"
+    network_mode: "{{ filebeat_config['docker_opts']['network_mode']| default(omit) }}"
+    networks: "{{ filebeat_config['docker_opts']['networks'] | default(omit) }}"
+    purge_networks: "{{ filebeat_config['docker_opts']['purge_networks'] | default(omit) }}"
+  tags: [ run_filebeat_logger_tasks ]

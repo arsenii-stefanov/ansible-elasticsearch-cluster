@@ -1,0 +1,126 @@
+---
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Apply the Default Index Template
+  uri:
+    url: "{{ elasticsearch_url }}/_template/default"
+    method: POST
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    body: "{{ lookup('template', 'elasticsearch/default_index_template.json.j2') }}"
+    body_format: json
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Create Roles
+  uri:
+    url: "{{ elasticsearch_url }}/{{ elasticsearch_security_api }}/role/{{ item.key }}"
+    method: POST
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    body: "{{ item.value | to_json }}"
+    body_format: json
+    force_basic_auth: yes
+  with_dict: "{{ elasticsearch_roles }}"
+  when: elasticsearch_roles is defined and elasticsearch_roles != ""
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Create Role Mappings
+  uri:
+    url: "{{ elasticsearch_url }}/{{ elasticsearch_security_api }}/role_mapping/{{ item.key }}"
+    method: POST
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    body: "{{ item.value | to_json }}"
+    body_format: json
+    force_basic_auth: yes
+  with_dict: "{{ elasticsearch_role_mappings }}"
+  when: elasticsearch_role_mappings is defined and elasticsearch_role_mappings != ""
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Get Users
+  uri:
+    url: "{{ elasticsearch_url }}/{{ elasticsearch_security_api }}/user"
+    method: GET
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    force_basic_auth: yes
+  register: existing_users_output
+  when: elasticsearch_users_delete is defined and elasticsearch_users_delete != ""
+  tags: [ run_post_installation_tasks ]
+
+- set_fact:
+    existing_users: "{{ existing_users_output.json | list }}"
+  when: elasticsearch_users_delete is defined and elasticsearch_users_delete != ""
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Delete Users
+  uri:
+    url: "{{ elasticsearch_url }}/{{ elasticsearch_security_api }}/user/{{ item }}"
+    method: DELETE
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    force_basic_auth: yes
+  with_items: "{{ elasticsearch_users_delete }}"
+  when: (elasticsearch_users_delete is defined and elasticsearch_users_delete != "") and item in existing_users
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Create Users
+  uri:
+    url: "{{ elasticsearch_url }}/{{ elasticsearch_security_api }}/user/{{ item.key }}"
+    method: POST
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    body: "{{ item.value | to_json }}"
+    body_format: json
+    force_basic_auth: yes
+  no_log: true
+  with_dict: "{{ elasticsearch_users }}"
+  when: elasticsearch_users is defined and elasticsearch_users != ""
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Update Built In Users' Passwords
+  uri:
+    url: "{{ elasticsearch_url }}/{{ elasticsearch_security_api }}/user/{{ item.key }}/_password"
+    method: POST
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    body: "{{ item.value | to_json }}"
+    body: "{ \"password\":\"{{ item.value.password }}\" }"
+    body_format: json
+    force_basic_auth: yes
+  no_log: true
+  with_dict: "{{ elasticsearch_built_in_users }}"
+  when: elasticsearch_built_in_users is defined and elasticsearch_built_in_users != ""
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Apply Custom Configs [from files]
+  uri:
+    url: "{{ elasticsearch_url }}{{ item.es_endpoint }}"
+    method: "{{ item.method }}"
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    body: "{{ lookup('file', item.es_file ) }}"
+    body_format: json
+  with_items: "{{ elasticsearch_config_files }}"
+  when: elasticsearch_config_files is defined and elasticsearch_config_files != ""
+  tags: [ run_post_installation_tasks ]
+
+- name: ELASTICSEARCH POST INSTALLATION TASK | Apply Custom Configs [from templates]
+  uri:
+    url: "{{ elasticsearch_url }}{{ item.es_endpoint }}"
+    method: "{{ item.method }}"
+    status_code: 200
+    user: "{{ elasticsearch_user | default('elastic') }}"
+    password: "{{ elasticsearch_bootstrap_password | default('') }}"
+    body: "{{ lookup('template', item.es_template ) }}"
+    body_format: json
+  with_items: "{{ elasticsearch_config_templates }}"
+  when: elasticsearch_config_templates is defined and elasticsearch_config_templates != ""
+  tags: [ run_post_installation_tasks ]

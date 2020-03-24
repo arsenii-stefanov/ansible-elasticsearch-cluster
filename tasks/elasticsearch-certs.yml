@@ -1,0 +1,60 @@
+---
+
+- name: ELASTICSEARCH CERTS TASK | Copy the Root CA Certificate and Key
+  copy:
+    content: "{{ item.src | b64decode }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ elasticsearch_owner }}"
+    group: "{{ elasticsearch_group }}"
+    mode: "0600"
+  with_items:
+    - { src: "{{ elasticsearch_root_ca_cert_base64 }}", dest: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_root_ca_cert_name }}" }
+    - { src: "{{ elasticsearch_root_ca_key_base64 }}", dest: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_root_ca_key_name }}" }
+  no_log: true
+
+- name: ELASTICSEARCH CERTS TASK | Generate a Private Key
+  openssl_privatekey:
+    path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_node_key_name }}"
+    owner: "{{ elasticsearch_owner }}"
+    group: "{{ elasticsearch_group }}"
+    mode: "0600"
+    type: RSA
+    size: "4096"
+  notify:
+  - "dummy_restart_elasticsearch_docker"
+  - "restart_elasticsearch_docker"
+
+- name: ELASTICSEARCH CERTS TASK | Generate a Certificate Request
+  openssl_csr:
+    path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_node_csr_name }}"
+    owner: "{{ elasticsearch_owner }}"
+    group: "{{ elasticsearch_group }}"
+    privatekey_path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_node_key_name }}"
+    common_name: "{{ elasticsearch_openssl_csr['common_name'] }}"
+    country_name: "{{ elasticsearch_openssl_csr['country_name'] }}"
+    state_or_province_name: "{{ elasticsearch_openssl_csr['state_or_province_name'] }}"
+    locality_name: "{{ elasticsearch_openssl_csr['locality_name'] }}"
+    organizational_unit_name: "{{ elasticsearch_openssl_csr['organizational_unit_name'] }}"
+    organization_name: "{{ elasticsearch_openssl_csr['organization_name'] }}"
+    email_address: "{{ elasticsearch_openssl_csr['email_address'] }}"
+    subject_alt_name: "{{ elasticsearch_openssl_csr['subject_alt_name'] }}"
+
+- name: ELASTICSEARCH CERTS TASK | Generate a Certificate and Sign It with the Root CA
+  openssl_certificate:
+    path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_node_cert_name }}"
+    owner: "{{ elasticsearch_owner }}"
+    group: "{{ elasticsearch_group }}"
+    mode: "0600"
+    privatekey_path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_node_key_name }}"
+    csr_path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_node_csr_name }}"
+    ownca_path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_root_ca_cert_name }}"
+    ownca_privatekey_path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_root_ca_key_name }}"
+    provider: ownca
+  notify:
+  - "dummy_restart_elasticsearch_docker"
+  - "restart_elasticsearch_docker"
+
+- name: ELASTICSEARCH CERTS TASK | Delete the Root CA Key for Security Reasons
+  file:
+    path: "{{ elasticsearch_certs_host_dir }}/{{ elasticsearch_root_ca_key_name }}"
+    state: absent

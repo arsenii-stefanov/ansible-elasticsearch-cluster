@@ -1,0 +1,47 @@
+---
+
+- name: ELASTICSEARCH SYSTEM CONFIG TASK | Update sysctl.conf
+  sysctl:
+    sysctl_file: /etc/sysctl.conf
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: "{{ item.state }}"
+    reload: yes
+  with_items: "{{ elasticsearch_sysctl_config }}"
+  notify:
+  - "dummy_restart_elasticsearch_docker"
+  - "restart_elasticsearch_docker"
+
+- name: ELASTICSEARCH SYSTEM CONFIG TASK | Update limits.conf
+  pam_limits:
+    domain: "{{ item.domain }}"
+    limit_type: "{{ item.limit_type }}"
+    limit_item: "{{ item.limit_item }}"
+    value: "{{ item.value }}"
+  with_items: "{{ elasticsearch_limits_config }}"
+  notify:
+  - "dummy_restart_elasticsearch_docker"
+  - "restart_elasticsearch_docker"
+  
+- name: ELASTICSEARCH SYSTEM CONFIG TASK | Ensure That Filesystem Is Created
+  filesystem:
+    fstype: "{{ item.fstype }}"
+    dev: "{{ item.src }}"
+    opts: "{{ item.fs_opts }}"
+    force: no
+  with_items: "{{ elasticsearch_disk_mounts }}"
+  when: elasticsearch_disk_mounts is defined and elasticsearch_disk_mounts != ""
+
+- name: ELASTICSEARCH SYSTEM CONFIG TASK | Ensure That the Disk Is Mounted
+  mount:
+    path: "{{ item.dest }}"
+    src: "{{ item.src }}"
+    fstype: "{{ item.fstype }}"
+    opts: "{{ item.mount_opts }}"
+    state: "{{ item.state }}"
+  with_items: "{{ elasticsearch_disk_mounts }}"
+  notify:
+  - "dummy_restart_elasticsearch_docker"
+  - "restart_elasticsearch_docker"
+  when: elasticsearch_disk_mounts is defined and elasticsearch_disk_mounts != ""
