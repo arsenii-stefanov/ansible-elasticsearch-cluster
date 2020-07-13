@@ -11,7 +11,10 @@
 
 - name: Include Elasticsearch Certificates Task
   include_tasks: elasticsearch-certs.yml
-  when: elasticsearch_config['xpack']['security']['enabled'] is defined and elasticsearch_config['xpack']['security']['enabled'] == true
+  when:
+    - elasticsearch_config['xpack']['security']['enabled'] is defined
+    - elasticsearch_config['xpack']['security']['enabled'] == true
+    - elasticsearch_config['xpack']['security']['transport']['ssl']['enabled'] or elasticsearch_config['xpack']['security']['http']['ssl']['enabled']
   tags: [always]
 
 - name: Include Elasticsearch Docker Task
