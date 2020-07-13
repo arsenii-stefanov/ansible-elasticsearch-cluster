@@ -21,3 +21,4 @@
   until: es_result.status == 200
   retries: "{{ elasticsearch_config['global']['status_check_retries'] }}"
   delay: "{{ elasticsearch_config['global']['status_check_delay'] }}"
+  when: (elasticsearch_initial_setup is defined and elasticsearch_initial_setup == false) or elasticsearch_initial_setup is not defined
